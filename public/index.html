@@ -1,0 +1,166 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Земельный калькулятор</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body { font-family: Arial, sans-serif; background: #f0f2f5; padding: 20px; }
+    .container { max-width: 650px; margin: 0 auto; }
+    h1 { text-align: center; color: #2c3e50; margin-bottom: 20px; font-size: 22px; }
+    .card { background: white; border-radius: 10px; padding: 20px; margin-bottom: 20px; box-shadow: 0 2px 8px rgba(0,0,0,0.1); }
+    .card h2 { font-size: 16px; color: #7f8c8d; margin-bottom: 15px; text-transform: uppercase; letter-spacing: 1px; }
+    .row { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+    label { display: block; margin-bottom: 4px; color: #555; font-size: 13px; }
+    input { width: 100%; padding: 9px; border: 1px solid #ddd; border-radius: 6px; font-size: 15px; margin-bottom: 12px; }
+    input:focus { outline: none; border-color: #27ae60; }
+    button { width: 100%; padding: 14px; background: #27ae60; color: white; border: none; border-radius: 6px; font-size: 16px; cursor: pointer; font-weight: bold; }
+    button:hover { background: #219a52; }
+    .result-row { padding: 12px 0; border-bottom: 1px solid #eee; }
+    .result-row:last-child { border-bottom: none; }
+    .result-top { display: flex; justify-content: space-between; align-items: center; }
+    .result-name { font-weight: bold; color: #2c3e50; font-size: 14px; }
+    .profit-positive { color: #27ae60; font-weight: bold; font-size: 15px; }
+    .profit-negative { color: #e74c3c; font-weight: bold; font-size: 15px; }
+    .result-details { font-size: 12px; color: #888; margin-top: 3px; }
+    .result-note { font-size: 12px; color: #e67e22; margin-top: 2px; }
+    .info-box { background: #eaf4fb; border-radius: 6px; padding: 12px; margin-bottom: 15px; font-size: 14px; color: #2980b9; display: flex; gap: 20px; }
+    .info-item { flex: 1; }
+    .info-label { font-size: 12px; color: #7fb3d3; }
+    .info-value { font-weight: bold; font-size: 15px; }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <h1>🌍 Земельный калькулятор</h1>
+
+    <div class="card">
+      <h2>Основные данные</h2>
+      <label>Кадастровая цена за 1 сотку (руб)</label>
+      <input type="number" id="cadastral" placeholder="например: 41296">
+      <label>Рыночная цена за 1 сотку (руб)</label>
+      <input type="number" id="market" placeholder="например: 150000">
+      <label>Площадь участка (соток)</label>
+      <input type="number" id="area" placeholder="например: 25">
+    </div>
+
+    <div class="card">
+      <h2>Выкупные проценты</h2>
+      <div class="row">
+        <div>
+          <label>Выкуп по 39.18 (%)</label>
+          <input type="number" id="buyout3918" placeholder="например: 100">
+        </div>
+        <div>
+          <label>Выкуп под Домом (%)</label>
+          <input type="number" id="buyoutDom" placeholder="например: 60">
+        </div>
+        <div>
+          <label>Выкуп под ОКС (%)</label>
+          <input type="number" id="buyoutOKS" placeholder="">
+        </div>
+        <div>
+          <label>% выкупа СХ через 3 года</label>
+          <input type="number" id="buyoutSX" placeholder="">
+        </div>
+      </div>
+    </div>
+
+    <div class="card">
+      <h2>Цены торгов в аренду (за 1 сотку)</h2>
+      <div class="row">
+        <div>
+          <label>Начальная цена</label>
+          <input type="number" id="auctionRentStart" placeholder="">
+        </div>
+        <div>
+          <label>Конечная цена</label>
+          <input type="number" id="auctionRentEnd" placeholder="">
+        </div>
+      </div>
+      <h2 style="margin-top:5px">Цены торгов в собственность (за 1 сотку)</h2>
+      <div class="row">
+        <div>
+          <label>Начальная цена</label>
+          <input type="number" id="auctionOwnStart" placeholder="">
+        </div>
+        <div>
+          <label>Конечная цена</label>
+          <input type="number" id="auctionOwnEnd" placeholder="">
+        </div>
+      </div>
+    </div>
+
+    <button onclick="calculate()">Рассчитать все стратегии</button>
+
+    <div class="card" id="results" style="display:none; margin-top:20px">
+      <h2>Результаты</h2>
+      <div class="info-box">
+        <div class="info-item">
+          <div class="info-label">Кадастровая стоимость участка</div>
+          <div class="info-value" id="val-cadastral">—</div>
+        </div>
+        <div class="info-item">
+          <div class="info-label">Рыночная стоимость участка</div>
+          <div class="info-value" id="val-market">—</div>
+        </div>
+      </div>
+      <div id="result-list"></div>
+    </div>
+  </div>
+
+  <script>
+    function fmt(n) { return n.toLocaleString('ru-RU') + ' руб'; }
+
+    async function calculate() {
+      const data = {
+        cadastralPerSotka: +document.getElementById('cadastral').value,
+        marketPerSotka: +document.getElementById('market').value,
+        area: +document.getElementById('area').value,
+        buyout3918: +document.getElementById('buyout3918').value || null,
+        buyoutDom: +document.getElementById('buyoutDom').value || null,
+        buyoutOKS: +document.getElementById('buyoutOKS').value || null,
+        buyoutSX: +document.getElementById('buyoutSX').value || null,
+        auctionRentStart: +document.getElementById('auctionRentStart').value || null,
+        auctionRentEnd: +document.getElementById('auctionRentEnd').value || null,
+        auctionOwnStart: +document.getElementById('auctionOwnStart').value || null,
+        auctionOwnEnd: +document.getElementById('auctionOwnEnd').value || null,
+      };
+
+      if (!data.cadastralPerSotka || !data.marketPerSotka || !data.area) {
+        alert('Заполните обязательные поля: кадастровая цена, рыночная цена и площадь');
+        return;
+      }
+
+      const res = await fetch('/calculate', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(data)
+      });
+      const json = await res.json();
+
+      document.getElementById('val-cadastral').textContent = fmt(json.cadastral);
+      document.getElementById('val-market').textContent = fmt(json.market);
+
+      document.getElementById('result-list').innerHTML = json.results.map(r => `
+        <div class="result-row">
+          <div class="result-top">
+            <div class="result-name">${r.name}</div>
+            <div class="${r.profit >= 0 ? 'profit-positive' : 'profit-negative'}">
+              ${r.profit >= 0 ? '+' : ''}${fmt(r.profit)}
+            </div>
+          </div>
+          <div class="result-details">
+            Бюджет: ${fmt(r.budget)} &nbsp;|&nbsp; Расходы: ${fmt(r.expenses)}
+          </div>
+          ${r.note ? `<div class="result-note">⚠️ ${r.note}</div>` : ''}
+        </div>
+      `).join('');
+
+      document.getElementById('results').style.display = 'block';
+      document.getElementById('results').scrollIntoView({ behavior: 'smooth' });
+    }
+  </script>
+</body>
+</html>
